@@ -16,7 +16,7 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v3
-        
+
       - name: Install dependencies
         uses: bahmutov/npm-install@v1
 
@@ -28,7 +28,7 @@ jobs:
           rm -rf node_modules
           rm -f package-lock.json
           npm i
-          
+
       - name: Build project
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
