@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 console.log(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN);
+console.log("skyla is cute");
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
