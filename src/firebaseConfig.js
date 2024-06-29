@@ -4,8 +4,8 @@ import { getFirestore } from "firebase/firestore";
 
 console.log(import.meta);
 console.log(import.meta.env);
-console.log(import.meta.env.FIREBASE_CONFIG);
-const firebaseConfig = import.meta.env.FIREBASE_CONFIG;
+console.log(import.meta.env.VITE_FIREBASE_CONFIG);
+const firebaseConfig = import.meta.env.VITE_FIREBASE_CONFIG;
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

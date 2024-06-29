@@ -31,7 +31,7 @@ jobs:
 
       - name: Build project
         env:
-          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+          VITE_FIREBASE_CONFIG: ${{ secrets.VITE_FIREBASE_CONFIG }}
         run: npm run build
 
       - name: Upload production-ready build files
