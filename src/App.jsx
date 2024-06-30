@@ -107,7 +107,6 @@ function App() {
   };
 
   useEffect(() => {
-    console.log("running");
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser(user);
