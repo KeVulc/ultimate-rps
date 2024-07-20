@@ -22,6 +22,7 @@ import Auth from "./Auth";
 import logout from "./assets/logout.svg";
 import GameForm from "./GameForm";
 import HeadToHead from "./HeadToHead";
+import CountDown from "./CountDown";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -42,26 +43,27 @@ function App() {
   const [showPopup, setShowPopup] = useState(false);
   const [promptMessage, setPromptMessage] = useState(false);
 
+  const generateDocId = (user1, user2) => {
+    return user1.userid < user2.userid
+      ? `${user1.userid}_${user2.userid}`
+      : `${user2.userid}_${user1.userid}`;
+  };
+
   useEffect(() => {
     const fetchOrCreateHeadToHeadData = async () => {
-      const headToHeadQuery = query(
-        collection(db, "HeadToHead"),
-        where("user1.id", "in", [userData.userid, oppData.userid]),
-        where("user2.id", "in", [userData.userid, oppData.userid])
-      );
+      const docId = generateDocId(userData, oppData);
+      const docRef = doc(db, "HeadToHead", docId);
 
       try {
-        const querySnapshot = await getDocs(headToHeadQuery);
-        let docRef;
+        const docSnapshot = await getDoc(docRef);
 
-        if (!querySnapshot.empty) {
-          docRef = querySnapshot.docs[0].ref;
-        } else {
-          docRef = doc(collection(db, "HeadToHead"));
+        if (!docSnapshot.exists()) {
+          // If the document does not exist, create a new one with initial data
           const newHeadToHeadData = {
             user1: { id: userData.userid, name: userData.name, score: 0 },
             user2: { id: oppData.userid, name: oppData.name, score: 0 },
             message: "",
+            date: getTomorrow(),
           };
 
           await setDoc(docRef, newHeadToHeadData);
@@ -96,6 +98,7 @@ function App() {
       }
     };
 
+    // Run the effect if userData and oppData are available
     if (userData && oppData) {
       fetchOrCreateHeadToHeadData();
     }
@@ -133,7 +136,7 @@ function App() {
     if (!userData) return;
 
     const newGame = await addDoc(collection(db, "Games"), {
-      user1: userData,
+      user1: { name: userData.name, userid: userData.userid },
       user2: null,
       user1Selection: null,
       user2Selection: null,
@@ -153,7 +156,7 @@ function App() {
         const gameData = gameDoc.data();
         if (!gameData.user2 && userData) {
           await updateDoc(doc(db, "Games", gameId), {
-            user2: userData,
+            user2: { name: userData.name, userid: userData.userid },
           });
           setGameId(gameId);
           listenToGame(gameId);
@@ -237,33 +240,40 @@ function App() {
     await updateDoc(gameDocRef, { user1Selection: null, user2Selection: null });
   };
 
+  const getTomorrow = () => {
+    const now = new Date();
+    const tmr = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return tmr;
+  };
+
   const resetGame = async (message) => {
     if (userData.name === gameWinner) {
       updateHeadToHead(message);
     }
-    setUserSelection(null);
-    setOppSelection(null);
-    setWinner(null);
-    setUserScore(0);
-    setOppScore(0);
-    setGameWinner(null);
-    setPromptMessage(false);
-    const gameDocRef = doc(db, "Games", gameId);
-    await updateDoc(gameDocRef, {
-      user1Selection: null,
-      user2Selection: null,
-      user1Score: 0,
-      user2Score: 0,
-      gameWinner: null,
-    });
-    setGameData({
-      ...gameData,
-      user1Selection: null,
-      user2Selection: null,
-      user1Score: 0,
-      user2Score: 0,
-      gameWinner: null,
-    });
+
+    // setUserSelection(null);
+    // setOppSelection(null);
+    // setWinner(null);
+    // setUserScore(0);
+    // setOppScore(0);
+    // setGameWinner(null);
+    // setPromptMessage(false);
+    // const gameDocRef = doc(db, "Games", gameId);
+    // await updateDoc(gameDocRef, {
+    //   user1Selection: null,
+    //   user2Selection: null,
+    //   user1Score: 0,
+    //   user2Score: 0,
+    //   gameWinner: null,
+    // });
+    // setGameData({
+    //   ...gameData,
+    //   user1Selection: null,
+    //   user2Selection: null,
+    //   user1Score: 0,
+    //   user2Score: 0,
+    //   gameWinner: null,
+    // });
   };
 
   useEffect(() => {
@@ -358,7 +368,9 @@ function App() {
         <Auth />
       ) : (
         <div className='flex flex-col items-center'>
-          <h1 className='text-2xl font-bold'>Rock Paper Scissors</h1>
+          <h1 className='text-center text-6xl font-bold font-SIL'>
+            Rock Paper Scissors
+          </h1>
           {!gameId ? (
             <GameForm createGame={createGame} joinGame={joinGame} />
           ) : (
@@ -388,15 +400,19 @@ function App() {
                   )}
                 </div>
               )}
-              <SelectionPrompt
-                userScore={userScore}
-                oppScore={oppScore}
-                userData={userData}
-                oppData={oppData}
-                handleSelection={handleSelection}
-                userSelection={userSelection}
-                oppSelection={oppSelection}
-              />
+              {gameWinner ? (
+                <CountDown date={getTomorrow()} />
+              ) : (
+                <SelectionPrompt
+                  userScore={userScore}
+                  oppScore={oppScore}
+                  userData={userData}
+                  oppData={oppData}
+                  handleSelection={handleSelection}
+                  userSelection={userSelection}
+                  oppSelection={oppSelection}
+                />
+              )}
             </>
           )}
           {winner && !gameWinner && <RoundOutcome winner={winner} />}
