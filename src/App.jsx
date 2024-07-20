@@ -4,17 +4,13 @@ import { db, auth } from "./firebaseConfig";
 import {
   doc,
   getDoc,
-  getDocs,
   updateDoc,
   collection,
   addDoc,
   setDoc,
   onSnapshot,
-  query,
-  where,
 } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import ScoreBoard from "./ScoreBoard";
 import SelectionPrompt from "./SelectionPrompt";
 import RoundOutcome from "./RoundOutcome";
 import GameWinner from "./GameWinner";
@@ -42,6 +38,7 @@ function App() {
   const [headToHeadData, setHeadToHeadData] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [promptMessage, setPromptMessage] = useState(false);
+  const [isGameTime, setIsGameTime] = useState(false);
 
   const generateDocId = (user1, user2) => {
     return user1.userid < user2.userid
@@ -63,8 +60,9 @@ function App() {
             user1: { id: userData.userid, name: userData.name, score: 0 },
             user2: { id: oppData.userid, name: oppData.name, score: 0 },
             message: "",
-            date: getTomorrow(),
+            date: getYesterday(),
           };
+          setPromptMessage(true);
 
           await setDoc(docRef, newHeadToHeadData);
           await updateDoc(doc(db, "User", userData.userid), {
@@ -79,6 +77,7 @@ function App() {
         const unsubscribe = onSnapshot(docRef, (doc) => {
           if (doc.exists()) {
             setHeadToHeadData(doc.data());
+            setPromptMessage(doc.data().date < new Date());
           } else {
             console.error("Head-to-head document does not exist!");
           }
@@ -246,6 +245,12 @@ function App() {
     return tmr;
   };
 
+  const getYesterday = () => {
+    const now = new Date();
+    const yst = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    return yst;
+  };
+
   const resetGame = async (message) => {
     if (userData.name === gameWinner) {
       updateHeadToHead(message);
@@ -324,18 +329,19 @@ function App() {
 
   const updateHeadToHead = async (message) => {
     const docSnapshot = await getDoc(headToHeadRef);
+    setPromptMessage(false);
     const data = docSnapshot.data();
-
     if (userData.userid === data.user1.id) {
       data.user1.score = data.user1.score + 1;
     } else {
       data.user2.score = data.user2.score + 1;
     }
-    console.log("updating Head to Head");
+
     await updateDoc(headToHeadRef, {
       "user1.score": data.user1.score,
       "user2.score": data.user2.score,
       message: message,
+      date: getTomorrow(),
     });
   };
 
@@ -416,7 +422,7 @@ function App() {
             </>
           )}
           {winner && !gameWinner && <RoundOutcome winner={winner} />}
-          {gameWinner && (
+          {gameWinner && isGameTime() && (
             <GameWinner
               gameWinner={gameWinner}
               resetGame={resetGame}
