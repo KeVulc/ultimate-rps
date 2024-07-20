@@ -37,8 +37,6 @@ function App() {
   const [headToHeadRef, setHeadToHeadRef] = useState(null);
   const [headToHeadData, setHeadToHeadData] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
-  const [promptMessage, setPromptMessage] = useState(false);
-  const [isGameTime, setIsGameTime] = useState(false);
 
   const generateDocId = (user1, user2) => {
     return user1.userid < user2.userid
@@ -47,7 +45,7 @@ function App() {
   };
 
   useEffect(() => {
-    const fetchOrCreateHeadToHeadData = async () => {
+    const fetchOrCreateHeadToHeadData = async (userData, oppData) => {
       const docId = generateDocId(userData, oppData);
       const docRef = doc(db, "HeadToHead", docId);
 
@@ -62,14 +60,15 @@ function App() {
             message: "",
             date: getYesterday(),
           };
-          setPromptMessage(true);
 
           await setDoc(docRef, newHeadToHeadData);
           await updateDoc(doc(db, "User", userData.userid), {
             headToHeads: [...userData.headToHeads, docRef],
           });
           await updateDoc(doc(db, "User", oppData.userid), {
-            headToHeads: [...oppData.headToHeads, docRef],
+            headToHeads: oppData.headToHeads
+              ? [...oppData.headToHeads, docRef]
+              : [docRef],
           });
         }
 
@@ -77,7 +76,6 @@ function App() {
         const unsubscribe = onSnapshot(docRef, (doc) => {
           if (doc.exists()) {
             setHeadToHeadData(doc.data());
-            setPromptMessage(doc.data().date < new Date());
           } else {
             console.error("Head-to-head document does not exist!");
           }
@@ -99,7 +97,7 @@ function App() {
 
     // Run the effect if userData and oppData are available
     if (userData && oppData) {
-      fetchOrCreateHeadToHeadData();
+      fetchOrCreateHeadToHeadData(userData, oppData);
     }
   }, [userData, oppData]);
 
@@ -320,7 +318,6 @@ function App() {
     if (userScore === 3 || oppScore === 3) {
       if (userScore === 3) {
         setGameWinner(userData.name);
-        setPromptMessage(true);
       } else if (oppScore === 3) {
         setGameWinner(oppData.name);
       }
@@ -329,13 +326,13 @@ function App() {
 
   const updateHeadToHead = async (message) => {
     const docSnapshot = await getDoc(headToHeadRef);
-    setPromptMessage(false);
     const data = docSnapshot.data();
     if (userData.userid === data.user1.id) {
       data.user1.score = data.user1.score + 1;
     } else {
       data.user2.score = data.user2.score + 1;
     }
+    headToHeadData.data = getTomorrow();
 
     await updateDoc(headToHeadRef, {
       "user1.score": data.user1.score,
@@ -381,12 +378,6 @@ function App() {
             <GameForm createGame={createGame} joinGame={joinGame} />
           ) : (
             <>
-              {headToHeadData && (
-                <HeadToHead
-                  headToHeadData={headToHeadData}
-                  isFirst={headToHeadData.user1.id === userData.userid}
-                />
-              )}
               {!(userData && oppData) && (
                 <div className='relative'>
                   <div
@@ -406,30 +397,41 @@ function App() {
                   )}
                 </div>
               )}
-              {gameWinner ? (
-                <CountDown date={getTomorrow()} />
-              ) : (
-                <SelectionPrompt
-                  userScore={userScore}
-                  oppScore={oppScore}
-                  userData={userData}
-                  oppData={oppData}
-                  handleSelection={handleSelection}
-                  userSelection={userSelection}
-                  oppSelection={oppSelection}
-                />
+              {headToHeadData && (
+                <>
+                  <HeadToHead
+                    headToHeadData={headToHeadData}
+                    isFirst={headToHeadData.user1.id === userData.userid}
+                  />
+                  {gameWinner || headToHeadData.date.toDate() > new Date() ? (
+                    <CountDown date={headToHeadData.date.toDate()} />
+                  ) : (
+                    <SelectionPrompt
+                      userScore={userScore}
+                      oppScore={oppScore}
+                      userData={userData}
+                      oppData={oppData}
+                      handleSelection={handleSelection}
+                      userSelection={userSelection}
+                      oppSelection={oppSelection}
+                    />
+                  )}
+                  {winner && !gameWinner && <RoundOutcome winner={winner} />}
+                  {gameWinner && (
+                    <GameWinner
+                      gameWinner={gameWinner}
+                      resetGame={resetGame}
+                      message={message}
+                      handleMessageChange={handleMessageChange}
+                      promptMessage={
+                        gameWinner === userData.name &&
+                        headToHeadData.date.toDate() < new Date()
+                      }
+                    />
+                  )}
+                </>
               )}
             </>
-          )}
-          {winner && !gameWinner && <RoundOutcome winner={winner} />}
-          {gameWinner && isGameTime() && (
-            <GameWinner
-              gameWinner={gameWinner}
-              resetGame={resetGame}
-              message={message}
-              handleMessageChange={handleMessageChange}
-              promptMessage={promptMessage}
-            />
           )}
         </div>
       )}
